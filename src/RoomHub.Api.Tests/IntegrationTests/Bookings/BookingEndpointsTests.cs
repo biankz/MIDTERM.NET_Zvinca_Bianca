@@ -12,15 +12,15 @@ public sealed class BookingEndpointsTests
 {
     private static readonly DateTime FutureStartUtc = new(2099, 1, 1, 10, 0, 0, DateTimeKind.Utc);
 
-    public static TheoryData<CreateBookingRequest, string> InvalidBookingRequests => new()
+    public static TheoryData<CreateBookingRequest, string, string> InvalidBookingRequests => new()
     {
-        { new CreateBookingRequest(null, FutureStartUtc, FutureStartUtc.AddHours(1), 2), "Booking.InvalidBookedBy" },
-        { new CreateBookingRequest("  ", FutureStartUtc, FutureStartUtc.AddHours(1), 2), "Booking.InvalidBookedBy" },
-        { new CreateBookingRequest("Alex", FutureStartUtc, FutureStartUtc, 2), "Booking.InvalidRange" },
-        { new CreateBookingRequest("Alex", FutureStartUtc, FutureStartUtc.AddHours(1), 0), "Booking.InvalidAttendees" },
-        { new CreateBookingRequest("Alex", FutureStartUtc, FutureStartUtc.AddHours(1), 9), "Booking.AttendeesExceedCapacity" },
-        { new CreateBookingRequest("Alex", new DateTime(2020, 1, 1, 10, 0, 0, DateTimeKind.Utc), new DateTime(2020, 1, 1, 11, 0, 0, DateTimeKind.Utc), 2), "Booking.StartsInPast" },
-        { new CreateBookingRequest("Alex", FutureStartUtc, FutureStartUtc.AddHours(4).AddTicks(1), 2), "Booking.TooLong" }
+        { new CreateBookingRequest(null, FutureStartUtc, FutureStartUtc.AddHours(1), 2), "Booking.InvalidBookedBy", "BookedBy is required." },
+        { new CreateBookingRequest("  ", FutureStartUtc, FutureStartUtc.AddHours(1), 2), "Booking.InvalidBookedBy", "BookedBy is required." },
+        { new CreateBookingRequest("Alex", FutureStartUtc, FutureStartUtc, 2), "Booking.InvalidRange", "The end must be after the start." },
+        { new CreateBookingRequest("Alex", FutureStartUtc, FutureStartUtc.AddHours(1), 0), "Booking.InvalidAttendees", "Attendees must be positive." },
+        { new CreateBookingRequest("Alex", FutureStartUtc, FutureStartUtc.AddHours(1), 9), "Booking.AttendeesExceedCapacity", "The room does not have enough seats." },
+        { new CreateBookingRequest("Alex", new DateTime(2020, 1, 1, 10, 0, 0, DateTimeKind.Utc), new DateTime(2020, 1, 1, 11, 0, 0, DateTimeKind.Utc), 2), "Booking.StartsInPast", "A booking cannot start in the past." },
+        { new CreateBookingRequest("Alex", FutureStartUtc, FutureStartUtc.AddHours(4).AddTicks(1), 2), "Booking.TooLong", "A booking cannot last more than 4 hours." }
     };
 
     [Fact]
@@ -56,7 +56,8 @@ public sealed class BookingEndpointsTests
     [MemberData(nameof(InvalidBookingRequests))]
     public async Task Given_InvalidBooking_When_Creating_Then_ReturnsBadRequestWithoutPersistence(
         CreateBookingRequest request,
-        string errorCode)
+        string errorCode,
+        string errorMessage)
     {
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
@@ -70,6 +71,7 @@ public sealed class BookingEndpointsTests
         Assert.NotNull(problem);
         Assert.Equal((int)HttpStatusCode.BadRequest, problem.Status);
         Assert.Equal(errorCode, problem.Title);
+        Assert.Equal(errorMessage, problem.Detail);
         Assert.Equal(errorCode, problem.Extensions["code"]?.ToString());
         Assert.Empty(await IntegrationTestData.ReadBookingsAsync(factory));
     }
@@ -88,6 +90,7 @@ public sealed class BookingEndpointsTests
         Assert.NotNull(problem);
         Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
         Assert.Equal("Room.NotFound", problem.Title);
+        Assert.Equal("The room does not exist.", problem.Detail);
         Assert.Empty(await IntegrationTestData.ReadBookingsAsync(factory));
     }
 
@@ -109,6 +112,7 @@ public sealed class BookingEndpointsTests
         Assert.NotNull(problem);
         Assert.Equal((int)HttpStatusCode.Conflict, problem.Status);
         Assert.Equal("Booking.RoomOccupied", problem.Title);
+        Assert.Equal("The room is occupied in this interval.", problem.Detail);
         var bookings = await IntegrationTestData.ReadBookingsAsync(factory);
         var stored = Assert.Single(bookings);
         Assert.Equal(existing.Id, stored.Id);
@@ -173,6 +177,7 @@ public sealed class BookingEndpointsTests
         Assert.NotNull(problem);
         Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
         Assert.Equal("Booking.NotFound", problem.Title);
+        Assert.Equal("The booking does not exist.", problem.Detail);
         Assert.Empty(await IntegrationTestData.ReadBookingsAsync(factory));
     }
 
@@ -219,6 +224,7 @@ public sealed class BookingEndpointsTests
         Assert.NotNull(problem);
         Assert.Equal((int)HttpStatusCode.Conflict, problem.Status);
         Assert.Equal("Booking.AlreadyCancelled", problem.Title);
+        Assert.Equal("The booking is already cancelled.", problem.Detail);
         var stored = Assert.Single(await IntegrationTestData.ReadBookingsAsync(factory));
         Assert.Equal(booking.Id, stored.Id);
         Assert.Equal(BookingStatus.Cancelled, stored.Status);
@@ -237,6 +243,7 @@ public sealed class BookingEndpointsTests
         Assert.NotNull(problem);
         Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
         Assert.Equal("Booking.NotFound", problem.Title);
+        Assert.Equal("The booking does not exist.", problem.Detail);
         Assert.Empty(await IntegrationTestData.ReadBookingsAsync(factory));
     }
 }

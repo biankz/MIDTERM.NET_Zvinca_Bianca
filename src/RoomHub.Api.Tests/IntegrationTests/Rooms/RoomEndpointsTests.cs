@@ -32,14 +32,15 @@ public sealed class RoomEndpointsTests
     }
 
     [Theory]
-    [InlineData(null, 8, "Room.InvalidName")]
-    [InlineData("  ", 8, "Room.InvalidName")]
-    [InlineData("Room 101", 0, "Room.InvalidCapacity")]
-    [InlineData("Room 101", -1, "Room.InvalidCapacity")]
+    [InlineData(null, 8, "Room.InvalidName", "Room name is required.")]
+    [InlineData("  ", 8, "Room.InvalidName", "Room name is required.")]
+    [InlineData("Room 101", 0, "Room.InvalidCapacity", "Capacity must be positive.")]
+    [InlineData("Room 101", -1, "Room.InvalidCapacity", "Capacity must be positive.")]
     public async Task Given_InvalidRoom_When_Creating_Then_ReturnsBadRequestWithoutPersistence(
         string? name,
         int capacity,
-        string errorCode)
+        string errorCode,
+        string errorMessage)
     {
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
@@ -53,6 +54,7 @@ public sealed class RoomEndpointsTests
         Assert.NotNull(problem);
         Assert.Equal((int)HttpStatusCode.BadRequest, problem.Status);
         Assert.Equal(errorCode, problem.Title);
+        Assert.Equal(errorMessage, problem.Detail);
         Assert.Equal(errorCode, problem.Extensions["code"]?.ToString());
         Assert.Empty(await IntegrationTestData.ReadRoomsAsync(factory));
     }
@@ -92,6 +94,7 @@ public sealed class RoomEndpointsTests
         Assert.NotNull(problem);
         Assert.Equal((int)HttpStatusCode.NotFound, problem.Status);
         Assert.Equal("Room.NotFound", problem.Title);
+        Assert.Equal("The room does not exist.", problem.Detail);
         Assert.Empty(await IntegrationTestData.ReadRoomsAsync(factory));
     }
 }

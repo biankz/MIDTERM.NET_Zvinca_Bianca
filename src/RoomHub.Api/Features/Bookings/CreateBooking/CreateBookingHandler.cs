@@ -16,8 +16,20 @@ public sealed class CreateBookingHandler(IRoomRepository rooms, IBookingReposito
             return RoomErrors.NotFound;
 
         var active = await bookings.GetActiveForRoomAsync(command.RoomId, cancellationToken);
+        IReadOnlyList<Booking> activeForParticipantOnDate = [];
+        if (!string.IsNullOrWhiteSpace(command.BookedBy))
+        {
+            var startUtc = command.StartUtc.Kind == DateTimeKind.Utc
+                ? command.StartUtc
+                : command.StartUtc.ToUniversalTime();
+            activeForParticipantOnDate = await bookings.GetActiveForParticipantOnUtcDateAsync(
+                command.BookedBy.Trim(),
+                DateOnly.FromDateTime(startUtc),
+                cancellationToken);
+        }
+
         var result = Booking.Create(room, command.BookedBy, command.StartUtc, command.EndUtc,
-            command.Attendees, time.GetUtcNow().UtcDateTime, active);
+            command.Attendees, time.GetUtcNow().UtcDateTime, active, activeForParticipantOnDate);
         if (result.IsFailure)
             return result.Error;
 

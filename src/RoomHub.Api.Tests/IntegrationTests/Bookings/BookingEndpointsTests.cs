@@ -155,6 +155,77 @@ public sealed class BookingEndpointsTests
     }
 
     [Fact]
+    public async Task Given_TwoActiveBookingsAcrossRoomsForParticipantOnSameUtcDate_When_Creating_Then_ReturnsConflict()
+    {
+        // Arrange
+        using var factory = new RoomHubWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var firstRoom = await IntegrationTestData.SeedRoomAsync(factory);
+        var secondRoom = await IntegrationTestData.SeedRoomAsync(factory);
+        var targetRoom = await IntegrationTestData.SeedRoomAsync(factory);
+        await IntegrationTestData.SeedBookingAsync(
+            factory, firstRoom, FutureStartUtc, FutureStartUtc.AddHours(1), bookedBy: "Taylor");
+        await IntegrationTestData.SeedBookingAsync(
+            factory, secondRoom, FutureStartUtc.AddHours(2), FutureStartUtc.AddHours(3), bookedBy: "Taylor");
+        var request = new CreateBookingRequest(
+            "Taylor", FutureStartUtc.AddHours(3), FutureStartUtc.AddHours(4), 2);
+
+        // Act
+        using var response = await client.PostAsJsonAsync(
+            $"/api/rooms/{targetRoom.Id}/bookings", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("Booking.ParticipantDailyLimitReached", problem.Title);
+        Assert.Equal(
+            "A participant cannot have more than 2 active bookings per UTC day.",
+            problem.Detail);
+        var bookings = await IntegrationTestData.ReadBookingsAsync(factory);
+        Assert.Equal(2, bookings.Count);
+    }
+
+    [Fact]
+    public async Task Given_CancelledBookingAndOneActiveBookingForParticipant_When_Creating_Then_AllowsSecondActiveBooking()
+    {
+        // Arrange
+        using var factory = new RoomHubWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var cancelledRoom = await IntegrationTestData.SeedRoomAsync(factory);
+        var activeRoom = await IntegrationTestData.SeedRoomAsync(factory);
+        var targetRoom = await IntegrationTestData.SeedRoomAsync(factory);
+        await IntegrationTestData.SeedBookingAsync(
+            factory,
+            cancelledRoom,
+            FutureStartUtc,
+            FutureStartUtc.AddHours(1),
+            cancelled: true,
+            bookedBy: "Taylor");
+        await IntegrationTestData.SeedBookingAsync(
+            factory,
+            activeRoom,
+            FutureStartUtc.AddHours(2),
+            FutureStartUtc.AddHours(3),
+            bookedBy: "Taylor");
+        var request = new CreateBookingRequest(
+            "Taylor", FutureStartUtc.AddHours(3), FutureStartUtc.AddHours(4), 2);
+
+        // Act
+        using var response = await client.PostAsJsonAsync(
+            $"/api/rooms/{targetRoom.Id}/bookings", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var bookings = await IntegrationTestData.ReadBookingsAsync(factory);
+        Assert.Equal(3, bookings.Count);
+        Assert.Equal(2, bookings.Count(booking =>
+            booking.BookedBy == "Taylor" && booking.Status == BookingStatus.Active));
+        Assert.Single(bookings, booking =>
+            booking.BookedBy == "Taylor" && booking.Status == BookingStatus.Cancelled);
+    }
+
+    [Fact]
     public async Task Given_ExistingBooking_When_Getting_Then_ReturnsBookingAndLeavesStateUnchanged()
     {
         // Arrange

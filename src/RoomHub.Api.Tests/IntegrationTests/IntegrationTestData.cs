@@ -25,11 +25,12 @@ internal static class IntegrationTestData
         Room room,
         DateTime startUtc,
         DateTime endUtc,
-        bool cancelled = false)
+        bool cancelled = false,
+        string bookedBy = "Test participant")
     {
         var booking = Booking.Create(
             room,
-            "Test participant",
+            bookedBy,
             startUtc,
             endUtc,
             2,

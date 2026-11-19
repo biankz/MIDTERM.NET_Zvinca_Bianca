@@ -198,6 +198,112 @@ public sealed class BookingTests
     }
 
     [Fact]
+    public void Given_TwoActiveBookingsForParticipantOnSameUtcDate_When_Creating_Then_ReturnsConflict()
+    {
+        // Arrange
+        var room = CreateRoom();
+        var participantBookings = new[]
+        {
+            CreateExistingBooking(room, FutureStartUtc.AddHours(1), FutureStartUtc.AddHours(2), "Taylor"),
+            CreateExistingBooking(room, FutureStartUtc.AddHours(3), FutureStartUtc.AddHours(4), "Taylor")
+        };
+
+        // Act
+        var result = Booking.Create(
+            room,
+            "Taylor",
+            FutureStartUtc.AddHours(5),
+            FutureStartUtc.AddHours(6),
+            2,
+            NowUtc,
+            [],
+            participantBookings);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorType.Conflict, result.Error.Type);
+        Assert.Equal("Booking.ParticipantDailyLimitReached", result.Error.Code);
+    }
+
+    [Fact]
+    public void Given_TwoActiveBookingsOnAnotherUtcDate_When_Creating_Then_Succeeds()
+    {
+        // Arrange
+        var room = CreateRoom();
+        var otherDayBookings = new[]
+        {
+            CreateExistingBooking(room, FutureStartUtc.AddDays(-1).AddHours(1), FutureStartUtc.AddDays(-1).AddHours(2), "Taylor"),
+            CreateExistingBooking(room, FutureStartUtc.AddDays(-1).AddHours(3), FutureStartUtc.AddDays(-1).AddHours(4), "Taylor")
+        };
+
+        // Act
+        var result = Booking.Create(
+            room,
+            "Taylor",
+            FutureStartUtc,
+            FutureStartUtc.AddHours(1),
+            2,
+            NowUtc,
+            [],
+            otherDayBookings);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public void Given_TwoActiveBookingsForAnotherParticipant_When_Creating_Then_Succeeds()
+    {
+        // Arrange
+        var room = CreateRoom();
+        var otherParticipantBookings = new[]
+        {
+            CreateExistingBooking(room, FutureStartUtc.AddHours(1), FutureStartUtc.AddHours(2), "Another"),
+            CreateExistingBooking(room, FutureStartUtc.AddHours(3), FutureStartUtc.AddHours(4), "Another")
+        };
+
+        // Act
+        var result = Booking.Create(
+            room,
+            "Taylor",
+            FutureStartUtc,
+            FutureStartUtc.AddHours(1),
+            2,
+            NowUtc,
+            [],
+            otherParticipantBookings);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public void Given_TwoCancelledBookingsForParticipantOnSameUtcDate_When_Creating_Then_Succeeds()
+    {
+        // Arrange
+        var room = CreateRoom();
+        var cancelledBookings = new[]
+        {
+            CreateCancelledBooking(room, FutureStartUtc.AddHours(1), FutureStartUtc.AddHours(2), "Taylor"),
+            CreateCancelledBooking(room, FutureStartUtc.AddHours(3), FutureStartUtc.AddHours(4), "Taylor")
+        };
+
+        // Act
+        var result = Booking.Create(
+            room,
+            "Taylor",
+            FutureStartUtc,
+            FutureStartUtc.AddHours(1),
+            2,
+            NowUtc,
+            [],
+            cancelledBookings);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
     public void Given_ActiveBooking_When_Cancelling_Then_ChangesStatusToCancelled()
     {
         // Arrange
@@ -234,6 +340,21 @@ public sealed class BookingTests
     private static Room CreateRoom(int capacity = 8) =>
         Room.Create("Test room", capacity).Value;
 
-    private static Booking CreateExistingBooking(Room room, DateTime startUtc, DateTime endUtc) =>
-        Booking.Create(room, "Existing participant", startUtc, endUtc, 2, NowUtc, []).Value;
+    private static Booking CreateExistingBooking(
+        Room room,
+        DateTime startUtc,
+        DateTime endUtc,
+        string bookedBy = "Existing participant") =>
+        Booking.Create(room, bookedBy, startUtc, endUtc, 2, NowUtc, []).Value;
+
+    private static Booking CreateCancelledBooking(
+        Room room,
+        DateTime startUtc,
+        DateTime endUtc,
+        string bookedBy)
+    {
+        var booking = CreateExistingBooking(room, startUtc, endUtc, bookedBy);
+        booking.Cancel();
+        return booking;
+    }
 }

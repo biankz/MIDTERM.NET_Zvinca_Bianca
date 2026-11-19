@@ -22,7 +22,8 @@ public sealed class Booking
     public BookingStatus Status { get; private set; }
 
     public static Result<Booking> Create(Room room, string? bookedBy, DateTime startUtc, DateTime endUtc,
-        int attendees, DateTime nowUtc, IReadOnlyList<Booking> activeBookings)
+        int attendees, DateTime nowUtc, IReadOnlyList<Booking> activeBookings,
+        IReadOnlyList<Booking>? activeBookingsForParticipantOnDate = null)
     {
         if (string.IsNullOrWhiteSpace(bookedBy))
             return BookingErrors.InvalidBookedBy;
@@ -40,6 +41,13 @@ public sealed class Booking
         if (end - start > TimeSpan.FromHours(4))
             return BookingErrors.TooLong;
 
+        var normalizedBookedBy = bookedBy.Trim();
+        if ((activeBookingsForParticipantOnDate ?? []).Count(booking =>
+                booking.Status == BookingStatus.Active &&
+                booking.StartUtc.Date == start.Date &&
+                string.Equals(booking.BookedBy, normalizedBookedBy, StringComparison.Ordinal)) >= 2)
+            return BookingErrors.ParticipantDailyLimitReached;
+
         foreach (var existing in activeBookings)
         {
             if (existing.Status == BookingStatus.Active &&
@@ -51,7 +59,7 @@ public sealed class Booking
         {
             Id = Guid.NewGuid(),
             RoomId = room.Id,
-            BookedBy = bookedBy.Trim(),
+            BookedBy = normalizedBookedBy,
             StartUtc = start,
             EndUtc = end,
             Attendees = attendees,
@@ -76,6 +84,7 @@ public static class BookingErrors
     public static readonly Error AttendeesExceedCapacity = Error.Validation("Booking.AttendeesExceedCapacity", "The room does not have enough seats.");
     public static readonly Error StartsInPast = Error.Validation("Booking.StartsInPast", "A booking cannot start in the past.");
     public static readonly Error TooLong = Error.Validation("Booking.TooLong", "A booking cannot last more than 4 hours.");
+    public static readonly Error ParticipantDailyLimitReached = Error.Conflict("Booking.ParticipantDailyLimitReached", "A participant cannot have more than 2 active bookings per UTC day.");
     public static readonly Error RoomOccupied = Error.Conflict("Booking.RoomOccupied", "The room is occupied in this interval.");
     public static readonly Error AlreadyCancelled = Error.Conflict("Booking.AlreadyCancelled", "The booking is already cancelled.");
     public static readonly Error NotFound = Error.NotFound("Booking.NotFound", "The booking does not exist.");

@@ -8,8 +8,14 @@ public sealed class RoomTests
     [Fact]
     public void Given_ValidRoomData_When_Creating_Then_ReturnsTrimmedRoom()
     {
-        var result = Room.Create("  Room 101  ", 8);
+        // Arrange
+        const string name = "  Room 101  ";
+        const int capacity = 8;
 
+        // Act
+        var result = Room.Create(name, capacity);
+
+        // Assert
         Assert.True(result.IsSuccess);
         Assert.NotEqual(Guid.Empty, result.Value.Id);
         Assert.Equal("Room 101", result.Value.Name);
@@ -22,8 +28,13 @@ public sealed class RoomTests
     [InlineData("  ")]
     public void Given_EmptyName_When_Creating_Then_ReturnsValidationError(string? name)
     {
-        var result = Room.Create(name, 8);
+        // Arrange
+        const int capacity = 8;
 
+        // Act
+        var result = Room.Create(name, capacity);
+
+        // Assert
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorType.Validation, result.Error.Type);
         Assert.Equal("Room.InvalidName", result.Error.Code);
@@ -34,8 +45,13 @@ public sealed class RoomTests
     [InlineData(-1)]
     public void Given_NonPositiveCapacity_When_Creating_Then_ReturnsValidationError(int capacity)
     {
-        var result = Room.Create("Room 101", capacity);
+        // Arrange
+        const string name = "Room 101";
 
+        // Act
+        var result = Room.Create(name, capacity);
+
+        // Assert
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorType.Validation, result.Error.Type);
         Assert.Equal("Room.InvalidCapacity", result.Error.Code);

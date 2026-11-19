@@ -23,11 +23,14 @@ public sealed class BookingTests
     [Fact]
     public void Given_ValidBookingData_When_Creating_Then_ReturnsTrimmedActiveBooking()
     {
+        // Arrange
         var room = CreateRoom();
 
+        // Act
         var result = Booking.Create(
             room, "  Alex  ", FutureStartUtc, FutureStartUtc.AddHours(1), 2, NowUtc, []);
 
+        // Assert
         Assert.True(result.IsSuccess);
         Assert.NotEqual(Guid.Empty, result.Value.Id);
         Assert.Equal(room.Id, result.Value.RoomId);
@@ -47,9 +50,14 @@ public sealed class BookingTests
         int attendees,
         string errorCode)
     {
-        var result = Booking.Create(
-            CreateRoom(), bookedBy, startUtc, endUtc, attendees, NowUtc, []);
+        // Arrange
+        var room = CreateRoom();
 
+        // Act
+        var result = Booking.Create(
+            room, bookedBy, startUtc, endUtc, attendees, NowUtc, []);
+
+        // Assert
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorType.Validation, result.Error.Type);
         Assert.Equal(errorCode, result.Error.Code);
@@ -58,8 +66,12 @@ public sealed class BookingTests
     [Fact]
     public void Given_StartInPast_When_Creating_Then_ReturnsValidationError()
     {
+        // Arrange
+        var room = CreateRoom();
+
+        // Act
         var result = Booking.Create(
-            CreateRoom(),
+            room,
             "Alex",
             NowUtc.AddTicks(-1),
             NowUtc.AddHours(1),
@@ -67,6 +79,7 @@ public sealed class BookingTests
             NowUtc,
             []);
 
+        // Assert
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorType.Validation, result.Error.Type);
         Assert.Equal("Booking.StartsInPast", result.Error.Code);
@@ -75,8 +88,12 @@ public sealed class BookingTests
     [Fact]
     public void Given_ExactlyFourHourDuration_When_Creating_Then_Succeeds()
     {
+        // Arrange
+        var room = CreateRoom();
+
+        // Act
         var result = Booking.Create(
-            CreateRoom(),
+            room,
             "Alex",
             FutureStartUtc,
             FutureStartUtc.AddHours(4),
@@ -84,6 +101,7 @@ public sealed class BookingTests
             NowUtc,
             []);
 
+        // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(TimeSpan.FromHours(4), result.Value.EndUtc - result.Value.StartUtc);
     }
@@ -91,8 +109,12 @@ public sealed class BookingTests
     [Fact]
     public void Given_DurationLongerThanFourHours_When_Creating_Then_ReturnsValidationError()
     {
+        // Arrange
+        var room = CreateRoom();
+
+        // Act
         var result = Booking.Create(
-            CreateRoom(),
+            room,
             "Alex",
             FutureStartUtc,
             FutureStartUtc.AddHours(4).AddTicks(1),
@@ -100,6 +122,7 @@ public sealed class BookingTests
             NowUtc,
             []);
 
+        // Assert
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorType.Validation, result.Error.Type);
         Assert.Equal("Booking.TooLong", result.Error.Code);
@@ -108,10 +131,12 @@ public sealed class BookingTests
     [Fact]
     public void Given_OverlappingActiveBooking_When_Creating_Then_ReturnsConflict()
     {
+        // Arrange
         var room = CreateRoom();
         var existing = CreateExistingBooking(
             room, FutureStartUtc, FutureStartUtc.AddHours(1));
 
+        // Act
         var result = Booking.Create(
             room,
             "Taylor",
@@ -121,6 +146,7 @@ public sealed class BookingTests
             NowUtc,
             [existing]);
 
+        // Assert
         Assert.True(result.IsFailure);
         Assert.Equal(ErrorType.Conflict, result.Error.Type);
         Assert.Equal("Booking.RoomOccupied", result.Error.Code);
@@ -129,10 +155,12 @@ public sealed class BookingTests
     [Fact]
     public void Given_AdjacentActiveBooking_When_Creating_Then_Succeeds()
     {
+        // Arrange
         var room = CreateRoom();
         var existing = CreateExistingBooking(
             room, FutureStartUtc, FutureStartUtc.AddHours(1));
 
+        // Act
         var result = Booking.Create(
             room,
             "Taylor",
@@ -142,18 +170,20 @@ public sealed class BookingTests
             NowUtc,
             [existing]);
 
+        // Assert
         Assert.True(result.IsSuccess);
     }
 
     [Fact]
     public void Given_OverlappingCancelledBooking_When_Creating_Then_Succeeds()
     {
+        // Arrange
         var room = CreateRoom();
         var cancelled = CreateExistingBooking(
             room, FutureStartUtc, FutureStartUtc.AddHours(1));
-        var cancelResult = cancelled.Cancel();
-        Assert.True(cancelResult.IsSuccess);
+        cancelled.Cancel();
 
+        // Act
         var result = Booking.Create(
             room,
             "Taylor",
@@ -163,17 +193,21 @@ public sealed class BookingTests
             NowUtc,
             [cancelled]);
 
+        // Assert
         Assert.True(result.IsSuccess);
     }
 
     [Fact]
     public void Given_ActiveBooking_When_Cancelling_Then_ChangesStatusToCancelled()
     {
+        // Arrange
         var booking = CreateExistingBooking(
             CreateRoom(), FutureStartUtc, FutureStartUtc.AddHours(1));
 
+        // Act
         var result = booking.Cancel();
 
+        // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(BookingStatus.Cancelled, booking.Status);
     }
@@ -181,12 +215,15 @@ public sealed class BookingTests
     [Fact]
     public void Given_CancelledBooking_When_CancellingAgain_Then_ReturnsConflictWithoutChangingState()
     {
+        // Arrange
         var booking = CreateExistingBooking(
             CreateRoom(), FutureStartUtc, FutureStartUtc.AddHours(1));
         var firstCancellation = booking.Cancel();
 
+        // Act
         var secondCancellation = booking.Cancel();
 
+        // Assert
         Assert.True(firstCancellation.IsSuccess);
         Assert.True(secondCancellation.IsFailure);
         Assert.Equal(ErrorType.Conflict, secondCancellation.Error.Type);

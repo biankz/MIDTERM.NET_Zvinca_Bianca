@@ -345,6 +345,36 @@ public sealed class BookingEndpointsTests
     }
 
     [Fact]
+    public async Task Given_BookingStartingInLessThanSixtyMinutes_When_Cancelling_Then_ReturnsConflictAndPreservesBooking()
+    {
+        // Arrange
+        var nowUtc = new DateTimeOffset(2035, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        using var factory = new RoomHubWebApplicationFactory(nowUtc);
+        using var client = factory.CreateClient();
+        var room = await IntegrationTestData.SeedRoomAsync(factory);
+        var booking = await IntegrationTestData.SeedBookingAsync(
+            factory,
+            room,
+            nowUtc.UtcDateTime.AddMinutes(59),
+            nowUtc.UtcDateTime.AddMinutes(90));
+
+        // Act
+        using var response = await client.PostAsync($"/api/bookings/{booking.Id}/cancel", null);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("Booking.CancellationTooLate", problem.Title);
+        Assert.Equal(
+            "A booking can only be cancelled at least 60 minutes before it starts.",
+            problem.Detail);
+        var stored = Assert.Single(await IntegrationTestData.ReadBookingsAsync(factory));
+        Assert.Equal(booking.Id, stored.Id);
+        Assert.Equal(BookingStatus.Active, stored.Status);
+    }
+
+    [Fact]
     public async Task Given_CancelledBooking_When_CancellingAgain_Then_ReturnsConflictWithoutChangingState()
     {
         // Arrange

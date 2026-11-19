@@ -244,7 +244,7 @@ public sealed class BookingTests
         var room = CreateRoom();
         var cancelled = CreateExistingBooking(
             room, FutureStartUtc, FutureStartUtc.AddHours(1));
-        cancelled.Cancel();
+        cancelled.Cancel(NowUtc);
 
         // Act
         var result = Booking.Create(
@@ -374,7 +374,7 @@ public sealed class BookingTests
             CreateRoom(), FutureStartUtc, FutureStartUtc.AddHours(1));
 
         // Act
-        var result = booking.Cancel();
+        var result = booking.Cancel(NowUtc);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -387,10 +387,10 @@ public sealed class BookingTests
         // Arrange
         var booking = CreateExistingBooking(
             CreateRoom(), FutureStartUtc, FutureStartUtc.AddHours(1));
-        var firstCancellation = booking.Cancel();
+        var firstCancellation = booking.Cancel(NowUtc);
 
         // Act
-        var secondCancellation = booking.Cancel();
+        var secondCancellation = booking.Cancel(NowUtc);
 
         // Assert
         Assert.True(firstCancellation.IsSuccess);
@@ -398,6 +398,56 @@ public sealed class BookingTests
         Assert.Equal(ErrorType.Conflict, secondCancellation.Error.Type);
         Assert.Equal("Booking.AlreadyCancelled", secondCancellation.Error.Code);
         Assert.Equal(BookingStatus.Cancelled, booking.Status);
+    }
+
+    [Fact]
+    public void Given_BookingStartingInExactlySixtyMinutes_When_Cancelling_Then_Succeeds()
+    {
+        // Arrange
+        var booking = CreateExistingBooking(
+            CreateRoom(), NowUtc.AddMinutes(60), NowUtc.AddMinutes(90));
+
+        // Act
+        var result = booking.Cancel(NowUtc);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(BookingStatus.Cancelled, booking.Status);
+    }
+
+    [Fact]
+    public void Given_BookingStartingInLessThanSixtyMinutes_When_Cancelling_Then_ReturnsConflictWithoutChangingState()
+    {
+        // Arrange
+        var booking = CreateExistingBooking(
+            CreateRoom(), NowUtc.AddMinutes(59).AddSeconds(59), NowUtc.AddMinutes(90));
+
+        // Act
+        var result = booking.Cancel(NowUtc);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorType.Conflict, result.Error.Type);
+        Assert.Equal("Booking.CancellationTooLate", result.Error.Code);
+        Assert.Equal(BookingStatus.Active, booking.Status);
+    }
+
+    [Fact]
+    public void Given_BookingAlreadyStarted_When_Cancelling_Then_ReturnsConflictWithoutChangingState()
+    {
+        // Arrange
+        var booking = CreateExistingBooking(
+            CreateRoom(), NowUtc.AddMinutes(59), NowUtc.AddMinutes(90));
+        var cancellationTimeUtc = NowUtc.AddMinutes(60);
+
+        // Act
+        var result = booking.Cancel(cancellationTimeUtc);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorType.Conflict, result.Error.Type);
+        Assert.Equal("Booking.CancellationTooLate", result.Error.Code);
+        Assert.Equal(BookingStatus.Active, booking.Status);
     }
 
     private static Room CreateRoom(int capacity = 8) =>
@@ -417,7 +467,7 @@ public sealed class BookingTests
         string bookedBy)
     {
         var booking = CreateExistingBooking(room, startUtc, endUtc, bookedBy);
-        booking.Cancel();
+        booking.Cancel(NowUtc);
         return booking;
     }
 }

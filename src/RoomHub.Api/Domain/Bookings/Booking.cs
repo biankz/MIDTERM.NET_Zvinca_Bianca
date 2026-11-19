@@ -72,10 +72,13 @@ public sealed class Booking
         };
     }
 
-    public Result<Unit> Cancel()
+    public Result<Unit> Cancel(DateTime nowUtc)
     {
         if (Status == BookingStatus.Cancelled)
             return BookingErrors.AlreadyCancelled;
+        if (StartUtc - nowUtc < TimeSpan.FromMinutes(60))
+            return BookingErrors.CancellationTooLate;
+
         Status = BookingStatus.Cancelled;
         return Unit.Value;
     }
@@ -93,5 +96,6 @@ public static class BookingErrors
     public static readonly Error ParticipantDailyLimitReached = Error.Conflict("Booking.ParticipantDailyLimitReached", "A participant cannot have more than 2 active bookings per UTC day.");
     public static readonly Error RoomOccupied = Error.Conflict("Booking.RoomOccupied", "The room is occupied in this interval.");
     public static readonly Error AlreadyCancelled = Error.Conflict("Booking.AlreadyCancelled", "The booking is already cancelled.");
+    public static readonly Error CancellationTooLate = Error.Conflict("Booking.CancellationTooLate", "A booking can only be cancelled at least 60 minutes before it starts.");
     public static readonly Error NotFound = Error.NotFound("Booking.NotFound", "The booking does not exist.");
 }

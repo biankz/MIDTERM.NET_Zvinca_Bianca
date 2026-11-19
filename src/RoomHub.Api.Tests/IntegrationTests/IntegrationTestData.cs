@@ -37,7 +37,7 @@ internal static class IntegrationTestData
             new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             Array.Empty<Booking>()).Value;
         if (cancelled)
-            booking.Cancel();
+            booking.Cancel(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RoomHubDbContext>();

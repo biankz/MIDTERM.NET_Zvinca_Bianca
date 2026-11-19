@@ -11,12 +11,15 @@ public sealed class RoomEndpointsTests
     [Fact]
     public async Task Given_ValidRoom_When_Creating_Then_ReturnsCreatedAndPersistsRoom()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var request = new CreateRoomRequest("Room 101", 8);
 
+        // Act
         using var response = await client.PostAsJsonAsync("/api/rooms", request);
 
+        // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<CreateRoomResponse>();
         Assert.NotNull(body);
@@ -42,12 +45,15 @@ public sealed class RoomEndpointsTests
         string errorCode,
         string errorMessage)
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var request = new CreateRoomRequest(name, capacity);
 
+        // Act
         using var response = await client.PostAsJsonAsync("/api/rooms", request);
 
+        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -62,12 +68,15 @@ public sealed class RoomEndpointsTests
     [Fact]
     public async Task Given_ExistingRoom_When_Getting_Then_ReturnsRoomAndLeavesStateUnchanged()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var room = await IntegrationTestData.SeedRoomAsync(factory, 12);
 
+        // Act
         using var response = await client.GetAsync($"/api/rooms/{room.Id}");
 
+        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<GetRoomResponse>();
         Assert.NotNull(body);
@@ -84,11 +93,14 @@ public sealed class RoomEndpointsTests
     [Fact]
     public async Task Given_MissingRoom_When_Getting_Then_ReturnsNotFound()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
 
+        // Act
         using var response = await client.GetAsync($"/api/rooms/{Guid.NewGuid()}");
 
+        // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problem);

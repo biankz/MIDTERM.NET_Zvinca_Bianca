@@ -34,6 +34,8 @@ using (var scope = app.Services.CreateScope())
 app.MapGet("/", () => "RoomHub API is running.");
 app.MapRoomFeatures();
 app.MapBookingFeatures();
+app.MapRoomFeatures("/api/v1", "V1");
+app.MapBookingFeatures("/api/v1", "V1");
 
 app.Run();
 

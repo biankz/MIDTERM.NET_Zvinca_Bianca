@@ -11,6 +11,13 @@ dotnet run --project src/RoomHub.Api
 The application starts on `http://localhost:5090`. The test requests are in `roomhub.http`
 (you can run them from Rider, or from VS Code with the REST Client extension).
 
+## API routes
+
+The versioned API is available under `/api/v1` (for example, `POST /api/v1/rooms`).
+The assignment-required `/api` routes remain available as compatibility aliases.
+Created resources return a `Location` URL under the same route prefix used to
+create them.
+
 ## How to start
 
 ```bash

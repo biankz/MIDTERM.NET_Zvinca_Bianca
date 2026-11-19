@@ -6,9 +6,9 @@ namespace RoomHub.Api.Features.Rooms.GetRoom;
 
 public static class GetRoomEndpoint
 {
-    public static void Map(RouteGroupBuilder group)
+    public static void Map(RouteGroupBuilder group, string routeNamePrefix)
     {
-        group.MapGet("/{id:guid}", Handle).WithName("GetRoom");
+        group.MapGet("/{id:guid}", Handle).WithName($"{routeNamePrefix}GetRoom");
     }
 
     private static async Task<Results<Ok<GetRoomResponse>, ProblemHttpResult>> Handle(

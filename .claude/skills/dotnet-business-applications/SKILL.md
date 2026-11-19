@@ -74,6 +74,23 @@ resources, and 409 for business conflicts. Confirm exact response bodies,
 headers, serialization, route constraints, and error formats from the
 application contract rather than assuming these defaults.
 
+### API versioning
+
+Before adding or changing routes, check whether the API already has a versioning
+policy and whether consumers or automated tests depend on existing URLs. When
+versioning is requested, choose a consistent explicit strategy—such as a URL
+prefix (`/api/v1/...`), a header, or a query parameter—based on repository
+conventions and consumer requirements. Do not mix strategies unintentionally.
+
+Treat a new API version as a contract boundary: keep its routes, request and
+response shapes, and generated resource links consistent with that version. If
+backward compatibility is required, retain the previous routes as deliberate
+aliases or a deprecated version and test both old and new paths. Do not silently
+break existing routes, duplicate endpoint names, or return an unversioned
+`Location` from a versioned create route. When an assignment or external contract
+requires exact unversioned routes, preserve them while adding versioned routes
+only when explicitly requested.
+
 An endpoint binds and translates HTTP data, invokes the application use case, and
 returns the HTTP outcome. It should not own reusable business rules or directly
 manipulate persistence. Use route names and metadata consistently with the

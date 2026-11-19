@@ -9,15 +9,22 @@ public sealed record CreateBookingResponse(Guid Id, Guid RoomId, string Status);
 
 public static class CreateBookingEndpoint
 {
-    public static void Map(RouteGroupBuilder group)
+    public static void Map(RouteGroupBuilder group, string apiPrefix, string routeNamePrefix)
     {
-        group.MapPost("/{roomId:guid}/bookings", Handle).WithName("CreateBooking");
+        group.MapPost("/{roomId:guid}/bookings",
+            (Guid roomId,
+                CreateBookingRequest request,
+                ICommandHandler<CreateBookingCommand, CreateBookingResult> handler,
+                CancellationToken cancellationToken) =>
+                    Handle(roomId, request, handler, apiPrefix, cancellationToken))
+            .WithName($"{routeNamePrefix}CreateBooking");
     }
 
     private static async Task<Results<Created<CreateBookingResponse>, ProblemHttpResult>> Handle(
         Guid roomId,
         CreateBookingRequest request,
         ICommandHandler<CreateBookingCommand, CreateBookingResult> handler,
+        string apiPrefix,
         CancellationToken cancellationToken)
     {
         var result = await handler.Handle(new CreateBookingCommand(roomId, request.BookedBy,
@@ -27,6 +34,6 @@ public static class CreateBookingEndpoint
 
         var booking = result.Value;
         var response = new CreateBookingResponse(booking.Id, booking.RoomId, booking.Status);
-        return TypedResults.Created($"/api/bookings/{booking.Id}", response);
+        return TypedResults.Created($"{apiPrefix}/bookings/{booking.Id}", response);
     }
 }

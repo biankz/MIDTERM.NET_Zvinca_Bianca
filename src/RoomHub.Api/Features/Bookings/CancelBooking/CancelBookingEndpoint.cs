@@ -7,9 +7,9 @@ namespace RoomHub.Api.Features.Bookings.CancelBooking;
 
 public static class CancelBookingEndpoint
 {
-    public static void Map(RouteGroupBuilder group)
+    public static void Map(RouteGroupBuilder group, string routeNamePrefix)
     {
-        group.MapPost("/{id:guid}/cancel", Handle).WithName("CancelBooking");
+        group.MapPost("/{id:guid}/cancel", Handle).WithName($"{routeNamePrefix}CancelBooking");
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> Handle(

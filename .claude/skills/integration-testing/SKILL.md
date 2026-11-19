@@ -56,6 +56,11 @@ validation, not-found, conflict, or other outcomes actually supported by the
 contract. Do not invent failures for operations that cannot return them. Include
 empty and populated collection behavior where relevant.
 
+When an API exposes multiple route versions or compatibility aliases, test the
+requested versioned routes and verify any required legacy routes still work.
+Created responses from each route set should point to a resource URL in that same
+version.
+
 Use Arrange–Act–Assert with clear separation and focused tests. Avoid loops,
 conditionals, test-order assumptions, network access, wall-clock dependence, and
 external databases unless they are explicitly part of the task.

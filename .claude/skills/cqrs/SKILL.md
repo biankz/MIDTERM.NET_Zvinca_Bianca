@@ -127,6 +127,17 @@ unless the repository already deliberately uses it and the task requires
 preserving it. Register each route once and remove replaced implementations and
 references when refactoring.
 
+## API versioning
+
+Inspect the existing route/version policy and consumer contract before changing
+routes. When versioning is requested, apply one consistent strategy (for example
+`/api/v1/...`) to every use case in the API version. If existing paths must remain
+compatible, map them deliberately as aliases or a deprecated version, and test
+both route sets. Ensure versioned create endpoints return `Location` headers
+pointing to the matching version's get route, and use unique endpoint names for
+each mapped version. Never replace contractually required routes or introduce
+incompatible behavior without explicit authorization.
+
 ## Verification
 
 Run the smallest relevant build and test commands available. Compare behavior

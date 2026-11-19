@@ -5,11 +5,14 @@ namespace RoomHub.Api.Features.Bookings;
 
 public static class BookingsEndpoints
 {
-    public static IEndpointRouteBuilder MapBookingFeatures(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapBookingFeatures(
+        this IEndpointRouteBuilder app,
+        string apiPrefix = "/api",
+        string routeNamePrefix = "")
     {
-        var group = app.MapGroup("/api/bookings").WithTags("Bookings");
-        GetBookingEndpoint.Map(group);
-        CancelBookingEndpoint.Map(group);
+        var group = app.MapGroup($"{apiPrefix}/bookings").WithTags("Bookings");
+        GetBookingEndpoint.Map(group, routeNamePrefix);
+        CancelBookingEndpoint.Map(group, routeNamePrefix);
         return app;
     }
 }

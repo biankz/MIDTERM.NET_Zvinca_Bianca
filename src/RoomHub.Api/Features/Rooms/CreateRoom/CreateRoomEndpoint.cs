@@ -10,14 +10,19 @@ public sealed record CreateRoomResponse(Guid Id, string Name, int Capacity);
 
 public static class CreateRoomEndpoint
 {
-    public static void Map(RouteGroupBuilder group)
+    public static void Map(RouteGroupBuilder group, string apiPrefix, string routeNamePrefix)
     {
-        group.MapPost("/", Handle).WithName("CreateRoom");
+        group.MapPost("/", (CreateRoomRequest request,
+            ICommandHandler<CreateRoomCommand, Room> handler,
+            CancellationToken cancellationToken) =>
+                Handle(request, handler, apiPrefix, cancellationToken))
+            .WithName($"{routeNamePrefix}CreateRoom");
     }
 
     private static async Task<Results<Created<CreateRoomResponse>, ProblemHttpResult>> Handle(
         CreateRoomRequest request,
         ICommandHandler<CreateRoomCommand, Room> handler,
+        string apiPrefix,
         CancellationToken cancellationToken)
     {
         var result = await handler.Handle(new CreateRoomCommand(request.Name, request.Capacity), cancellationToken);
@@ -25,7 +30,7 @@ public static class CreateRoomEndpoint
             return result.Error.ToProblem();
 
         var room = result.Value;
-        return TypedResults.Created($"/api/rooms/{room.Id}",
+        return TypedResults.Created($"{apiPrefix}/rooms/{room.Id}",
             new CreateRoomResponse(room.Id, room.Name, room.Capacity));
     }
 }

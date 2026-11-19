@@ -226,6 +226,51 @@ public sealed class BookingEndpointsTests
     }
 
     [Fact]
+    public async Task Given_LargeRoomAndBookingLongerThanTwoHours_When_Creating_Then_ReturnsBadRequest()
+    {
+        // Arrange
+        using var factory = new RoomHubWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var room = await IntegrationTestData.SeedRoomAsync(factory, capacity: 11);
+        var request = new CreateBookingRequest(
+            "Taylor", FutureStartUtc, FutureStartUtc.AddHours(2).AddTicks(1), 2);
+
+        // Act
+        using var response = await client.PostAsJsonAsync(
+            $"/api/rooms/{room.Id}/bookings", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal("Booking.TooLongForLargeRoom", problem.Title);
+        Assert.Equal(
+            "A booking in a room with capacity greater than 10 cannot last more than 2 hours.",
+            problem.Detail);
+        Assert.Empty(await IntegrationTestData.ReadBookingsAsync(factory));
+    }
+
+    [Fact]
+    public async Task Given_LargeRoomAndExactlyTwoHourBooking_When_Creating_Then_Succeeds()
+    {
+        // Arrange
+        using var factory = new RoomHubWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var room = await IntegrationTestData.SeedRoomAsync(factory, capacity: 11);
+        var request = new CreateBookingRequest(
+            "Taylor", FutureStartUtc, FutureStartUtc.AddHours(2), 2);
+
+        // Act
+        using var response = await client.PostAsJsonAsync(
+            $"/api/rooms/{room.Id}/bookings", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var stored = Assert.Single(await IntegrationTestData.ReadBookingsAsync(factory));
+        Assert.Equal(FutureStartUtc.AddHours(2), stored.EndUtc);
+    }
+
+    [Fact]
     public async Task Given_ExistingBooking_When_Getting_Then_ReturnsBookingAndLeavesStateUnchanged()
     {
         // Arrange

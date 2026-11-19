@@ -129,6 +129,69 @@ public sealed class BookingTests
     }
 
     [Fact]
+    public void Given_LargeRoomAndExactlyTwoHourDuration_When_Creating_Then_Succeeds()
+    {
+        // Arrange
+        var room = CreateRoom(capacity: 11);
+
+        // Act
+        var result = Booking.Create(
+            room,
+            "Alex",
+            FutureStartUtc,
+            FutureStartUtc.AddHours(2),
+            2,
+            NowUtc,
+            []);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(TimeSpan.FromHours(2), result.Value.EndUtc - result.Value.StartUtc);
+    }
+
+    [Fact]
+    public void Given_LargeRoomAndDurationOverTwoHours_When_Creating_Then_ReturnsValidationError()
+    {
+        // Arrange
+        var room = CreateRoom(capacity: 11);
+
+        // Act
+        var result = Booking.Create(
+            room,
+            "Alex",
+            FutureStartUtc,
+            FutureStartUtc.AddHours(2).AddTicks(1),
+            2,
+            NowUtc,
+            []);
+
+        // Assert
+        Assert.True(result.IsFailure);
+        Assert.Equal(ErrorType.Validation, result.Error.Type);
+        Assert.Equal("Booking.TooLongForLargeRoom", result.Error.Code);
+    }
+
+    [Fact]
+    public void Given_RoomCapacityOfTenAndFourHourDuration_When_Creating_Then_Succeeds()
+    {
+        // Arrange
+        var room = CreateRoom(capacity: 10);
+
+        // Act
+        var result = Booking.Create(
+            room,
+            "Alex",
+            FutureStartUtc,
+            FutureStartUtc.AddHours(4),
+            2,
+            NowUtc,
+            []);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
     public void Given_OverlappingActiveBooking_When_Creating_Then_ReturnsConflict()
     {
         // Arrange

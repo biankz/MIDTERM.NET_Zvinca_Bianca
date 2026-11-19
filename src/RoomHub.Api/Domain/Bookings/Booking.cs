@@ -38,8 +38,13 @@ public sealed class Booking
         var end = endUtc.Kind == DateTimeKind.Utc ? endUtc : endUtc.ToUniversalTime();
         if (start <= nowUtc)
             return BookingErrors.StartsInPast;
-        if (end - start > TimeSpan.FromHours(4))
-            return BookingErrors.TooLong;
+        var maximumDuration = room.Capacity > 10
+            ? TimeSpan.FromHours(2)
+            : TimeSpan.FromHours(4);
+        if (end - start > maximumDuration)
+            return room.Capacity > 10
+                ? BookingErrors.TooLongForLargeRoom
+                : BookingErrors.TooLong;
 
         var normalizedBookedBy = bookedBy.Trim();
         if ((activeBookingsForParticipantOnDate ?? []).Count(booking =>
@@ -84,6 +89,7 @@ public static class BookingErrors
     public static readonly Error AttendeesExceedCapacity = Error.Validation("Booking.AttendeesExceedCapacity", "The room does not have enough seats.");
     public static readonly Error StartsInPast = Error.Validation("Booking.StartsInPast", "A booking cannot start in the past.");
     public static readonly Error TooLong = Error.Validation("Booking.TooLong", "A booking cannot last more than 4 hours.");
+    public static readonly Error TooLongForLargeRoom = Error.Validation("Booking.TooLongForLargeRoom", "A booking in a room with capacity greater than 10 cannot last more than 2 hours.");
     public static readonly Error ParticipantDailyLimitReached = Error.Conflict("Booking.ParticipantDailyLimitReached", "A participant cannot have more than 2 active bookings per UTC day.");
     public static readonly Error RoomOccupied = Error.Conflict("Booking.RoomOccupied", "The room is occupied in this interval.");
     public static readonly Error AlreadyCancelled = Error.Conflict("Booking.AlreadyCancelled", "The booking is already cancelled.");

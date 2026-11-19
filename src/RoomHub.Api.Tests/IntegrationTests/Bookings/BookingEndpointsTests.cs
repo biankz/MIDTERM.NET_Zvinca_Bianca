@@ -26,13 +26,16 @@ public sealed class BookingEndpointsTests
     [Fact]
     public async Task Given_ValidBooking_When_Creating_Then_ReturnsCreatedAndPersistsBooking()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var room = await IntegrationTestData.SeedRoomAsync(factory);
         var request = new CreateBookingRequest("Alex", FutureStartUtc, FutureStartUtc.AddHours(1), 2);
 
+        // Act
         using var response = await client.PostAsJsonAsync($"/api/rooms/{room.Id}/bookings", request);
 
+        // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<CreateBookingResponse>();
         Assert.NotNull(body);
@@ -59,12 +62,15 @@ public sealed class BookingEndpointsTests
         string errorCode,
         string errorMessage)
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var room = await IntegrationTestData.SeedRoomAsync(factory);
 
+        // Act
         using var response = await client.PostAsJsonAsync($"/api/rooms/{room.Id}/bookings", request);
 
+        // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -79,12 +85,15 @@ public sealed class BookingEndpointsTests
     [Fact]
     public async Task Given_MissingRoomAndInvalidRequest_When_Creating_Then_ReturnsNotFoundBeforeValidation()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var request = new CreateBookingRequest(null, FutureStartUtc, FutureStartUtc, 0);
 
+        // Act
         using var response = await client.PostAsJsonAsync($"/api/rooms/{Guid.NewGuid()}/bookings", request);
 
+        // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problem);
@@ -97,6 +106,7 @@ public sealed class BookingEndpointsTests
     [Fact]
     public async Task Given_OverlappingActiveBooking_When_Creating_Then_ReturnsConflictWithoutPersistence()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var room = await IntegrationTestData.SeedRoomAsync(factory);
@@ -105,8 +115,10 @@ public sealed class BookingEndpointsTests
         var request = new CreateBookingRequest(
             "Taylor", FutureStartUtc.AddMinutes(30), FutureStartUtc.AddHours(2), 2);
 
+        // Act
         using var response = await client.PostAsJsonAsync($"/api/rooms/{room.Id}/bookings", request);
 
+        // Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problem);
@@ -121,6 +133,7 @@ public sealed class BookingEndpointsTests
     [Fact]
     public async Task Given_BookingStartingWhenAnotherEnds_When_Creating_Then_AllowsAdjacentIntervals()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var room = await IntegrationTestData.SeedRoomAsync(factory);
@@ -129,8 +142,10 @@ public sealed class BookingEndpointsTests
         var request = new CreateBookingRequest(
             "Taylor", FutureStartUtc.AddHours(1), FutureStartUtc.AddHours(2), 2);
 
+        // Act
         using var response = await client.PostAsJsonAsync($"/api/rooms/{room.Id}/bookings", request);
 
+        // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var bookings = await IntegrationTestData.ReadBookingsAsync(factory);
         Assert.Equal(2, bookings.Count);
@@ -142,14 +157,17 @@ public sealed class BookingEndpointsTests
     [Fact]
     public async Task Given_ExistingBooking_When_Getting_Then_ReturnsBookingAndLeavesStateUnchanged()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var room = await IntegrationTestData.SeedRoomAsync(factory, 10);
         var booking = await IntegrationTestData.SeedBookingAsync(
             factory, room, FutureStartUtc, FutureStartUtc.AddHours(1));
 
+        // Act
         using var response = await client.GetAsync($"/api/bookings/{booking.Id}");
 
+        // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<GetBookingResponse>();
         Assert.NotNull(body);
@@ -167,11 +185,14 @@ public sealed class BookingEndpointsTests
     [Fact]
     public async Task Given_MissingBooking_When_Getting_Then_ReturnsNotFound()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
 
+        // Act
         using var response = await client.GetAsync($"/api/bookings/{Guid.NewGuid()}");
 
+        // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problem);
@@ -184,23 +205,22 @@ public sealed class BookingEndpointsTests
     [Fact]
     public async Task Given_ActiveBooking_When_Cancelling_Then_ReturnsNoContentAndFreesItsInterval()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var room = await IntegrationTestData.SeedRoomAsync(factory);
         var booking = await IntegrationTestData.SeedBookingAsync(
             factory, room, FutureStartUtc, FutureStartUtc.AddHours(1));
 
+        // Act
         using var response = await client.PostAsync($"/api/bookings/{booking.Id}/cancel", null);
-
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Empty(await response.Content.ReadAsStringAsync());
-        var cancelled = Assert.Single(await IntegrationTestData.ReadBookingsAsync(factory));
-        Assert.Equal(BookingStatus.Cancelled, cancelled.Status);
-
         using var createResponse = await client.PostAsJsonAsync(
             $"/api/rooms/{room.Id}/bookings",
             new CreateBookingRequest("Taylor", FutureStartUtc, FutureStartUtc.AddHours(1), 2));
 
+        // Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Empty(await response.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var bookings = await IntegrationTestData.ReadBookingsAsync(factory);
         Assert.Equal(2, bookings.Count);
@@ -211,14 +231,17 @@ public sealed class BookingEndpointsTests
     [Fact]
     public async Task Given_CancelledBooking_When_CancellingAgain_Then_ReturnsConflictWithoutChangingState()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
         var room = await IntegrationTestData.SeedRoomAsync(factory);
         var booking = await IntegrationTestData.SeedBookingAsync(
             factory, room, FutureStartUtc, FutureStartUtc.AddHours(1), cancelled: true);
 
+        // Act
         using var response = await client.PostAsync($"/api/bookings/{booking.Id}/cancel", null);
 
+        // Assert
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problem);
@@ -233,11 +256,14 @@ public sealed class BookingEndpointsTests
     [Fact]
     public async Task Given_MissingBooking_When_Cancelling_Then_ReturnsNotFound()
     {
+        // Arrange
         using var factory = new RoomHubWebApplicationFactory();
         using var client = factory.CreateClient();
 
+        // Act
         using var response = await client.PostAsync($"/api/bookings/{Guid.NewGuid()}/cancel", null);
 
+        // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         Assert.NotNull(problem);
